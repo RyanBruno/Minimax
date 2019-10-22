@@ -105,15 +105,64 @@ void minimax(const char board[9], int scores_r[9], char symbol, char second_symb
     }
 }
 
+int choose_best_slot(int scores[9])
+{
+}
 
 int main()
 {
-    int value[9];
+    int selection;
 
-    minimax("---------", &value, 'X', 'O', 1);
+    printf("[1] Both players use minimax\n");
+    printf("[2] Player one uses minimax and player two has a 50%% chance of using minimax\n");
+    printf("[3] Player one has a 50%% chance of using minimax and player two uses minimax\n");
+    printf("Make a section [1, 2, 3]: ");
 
-    for (int i = 0; i < 9; i++) {
-        printf("%d ", value[i]);
+    scanf("%d", &selection);
+
+
+    char board[9] = "---------";
+    int status;
+    char curr_player = 'X';
+    char second_player = 'O';
+
+    while((status = check_for_finished(board, 'X')) == -1) {
+        int value[9];
+
+        minimax(board, &value, curr_player, second_player, 1);
+
+        int slot;
+        int slot_value = -11;
+        
+        for (int i = 0; i < 9; i++) {
+            if (value[i] == 0 || value[i] < slot_value)
+                continue;
+            if (value[i] == slot_value)
+                if (rand() % 2 == 0)
+                    continue;
+            slot = i;
+            slot_value = value[i];
+        }
+        printf("%d\n", slot);
+
+        board[slot] = curr_player;
+
+        {
+            char temp = curr_player;
+
+            curr_player = second_player;
+            second_player = temp;
+        }
     }
-    printf("\n");
+
+    for (int i = 0; i < 3; i++) {
+        printf("%c | %c | %c\n", board[i], board[i + 1], board[i + 2]);
+        if (i < 2) printf("--+---+---\n");
+    }
+
+    if (status == 0) {
+        printf("Game Ended in a tie\n");
+    } else {
+        printf("Game did not tie\n");
+    }
 }
