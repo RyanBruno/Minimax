@@ -1,112 +1,137 @@
 #include <string.h>
+#include <limits.h>
 #include <stdio.h>
 
-int check_for_finished(char board[9], char symbol) {
+enum board_state {
+    Winner,
+    Loser,
+    Tie,
+    In_Progress,
+};
+
+enum board_state
+check_for_finished(char board[9], char symbol) {
     /* Horizontal Cases */
     if (board[0] != '-' && board[0] == board[1] && board[0] == board[2]) {
         if (board[0] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     if (board[3] != '-' && board[3] == board[4] && board[3] == board[5]) {
         if (board[3] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     if (board[6] != '-' && board[6] == board[7] && board[6] == board[8]) {
         if (board[6] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     /* Vertical Cases */
     if (board[0] != '-' && board[0] == board[3] && board[0] == board[6]) {
         if (board[0] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     if (board[1] != '-' && board[1] == board[4] && board[1] == board[7]) {
         if (board[1] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     if (board[2] != '-' && board[2] == board[5] && board[2] == board[8]) {
         if (board[2] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
 
     /* Diagonal Case */
     if (board[0] != '-' && board[0] == board[4] && board[0] == board[8]) {
         if (board[0] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
     if (board[2] != '-' && board[2] == board[4] && board[2] == board[6]) {
         if (board[2] == symbol)
-            return 10;
-        return -10;
+            return Winner;
+        return Loser;
     }
 
     for (int i = 0; i < 9; i++) {
         if (board[i] == '-')
-            return -1;
+            return In_Progress;
     }
 
-    return 0;
+    return Tie;
 }
 
-void minimax(const char board[9], int scores_r[9], char symbol, char second_symbol, int min_b)
+struct move {
+    int index;
+    int value;
+};
+/* Board must be in In_Progress state */
+struct move
+minimax(const char board[9], char symbol, char second_symbol, int min_b)
 {
+    int move_index = -1;
+    int max = INT_MIN;
+    int min = INT_MAX;
+    struct move m;
+
     /* Loop through every slot */
     for (int i = 0; i < 9; i++) {
-        int status;
+        enum board_state s;
+        char new_board[9];
+        int score;
 
         /* If not empty continue & score -1*/
         if (board[i] != '-') {
-            scores_r[i] = 0;
             continue;
         } 
         
         /* Create new board with symbol in slot */
-        char new_board[9];
         memcpy(new_board, board, 9);
         new_board[i] = symbol;
 
-        /* Check if someone has won or board is full */
-        status = check_for_finished(new_board, symbol);
 
-        if (status != -1) {
-            scores_r[i] = status;
-            continue;
+        /* Get the board status */
+        s = check_for_finished(new_board, symbol);
+
+        switch (s) {
+        case Winner:
+            score = 1;
+            break;
+        case Loser:
+            score = -1;
+            break;
+        case Tie:
+            score = 0;
+            break;
+        case In_Progress:
+            m = minimax(new_board, second_symbol,
+                    symbol, (min_b == 1) ? 0 : 1);
+            score = m.value;
+            break;
         }
 
-        {
-            int mm_scores[9];
-            int min = 10000; 
-            int max = -10000;
+        if (score > max) {
+            max = score;
+            move_index = i;
+        }
 
-            /* Recursively run minimax flipping symbols and min_b bool */
-            minimax(new_board, mm_scores,
-                    second_symbol, symbol, (min_b == 1) ? 0 : 1);
-
-            /* Set slot's score to min or max */
-            for (int j = 0; j < 9; j++) {
-                if (mm_scores[j] == 0) continue;
-                if (mm_scores[j] < min) min = mm_scores[j];
-                if (mm_scores[j] > max) max = mm_scores[j];
-            }
-
-            if (min_b == 1) {
-                scores_r[i] = min;
-            } else {
-                scores_r[i] = max;
-            }
+        if (score < min) {
+            min = score;
         }
     }
-}
 
-int choose_best_slot(int scores[9])
-{
+    if (min_b == 1) {
+        m.index = move_index;
+        m.value = max;
+    } else {
+        m.index = -1;
+        m.value = min;
+    }
+
+    return m;
 }
 
 int main()
@@ -126,26 +151,19 @@ int main()
     char curr_player = 'X';
     char second_player = 'O';
 
-    while((status = check_for_finished(board, 'X')) == -1) {
-        int value[9];
+    while(check_for_finished(board, 'X') == In_Progress) {
+        struct move m;
 
-        minimax(board, &value, curr_player, second_player, 1);
+        m = minimax(board, curr_player, second_player, 1);
 
-        int slot;
-        int slot_value = -11;
-        
-        for (int i = 0; i < 9; i++) {
-            if (value[i] == 0 || value[i] < slot_value)
-                continue;
-            if (value[i] == slot_value)
-                if (rand() % 2 == 0)
-                    continue;
-            slot = i;
-            slot_value = value[i];
+        printf("Moved player (%c) to index %d with score %d\n", curr_player, m.index, m.value);
+        board[m.index] = curr_player;
+
+        for (int i = 0; i < 9; i+= 3) {
+            printf("%c | %c | %c\n", board[i], board[i + 1], board[i + 2]);
+            if (i < 6) printf("--+---+---\n");
         }
-        printf("%d\n", slot);
-
-        board[slot] = curr_player;
+         printf("\n\n");
 
         {
             char temp = curr_player;
@@ -155,14 +173,24 @@ int main()
         }
     }
 
-    for (int i = 0; i < 3; i++) {
-        printf("%c | %c | %c\n", board[i], board[i + 1], board[i + 2]);
-        if (i < 2) printf("--+---+---\n");
-    }
+    switch (check_for_finished(board, 'X')) {
+        case Winner:
+            printf("Player (X) has Won!");
+            break;
+        case Loser:
+            printf("Player (O) has Won!");
+            break;
+        case Tie:
+            printf("Tie Game!");
+            break;
+    };
 
-    if (status == 0) {
-        printf("Game Ended in a tie\n");
-    } else {
-        printf("Game did not tie\n");
-    }
 }
+/*
+ *
+        printf("%c\n", curr_player);
+        for (int i = 0; i < 3; i++) {
+            printf("%d | %d | %d\n", value[i], value[i + 1], value[i + 2]);
+            if (i < 2) printf("--+---+---\n");
+        }
+        */
