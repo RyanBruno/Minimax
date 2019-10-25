@@ -1,0 +1,11 @@
+Minimax Project
+
+I have compiled an exe for windows
+ - Open a command prompt
+ - Change directory
+ - Run "Minimax.exe"
+
+How to compile
+ - On linux run "make"
+ - then run "./minimax"
+
